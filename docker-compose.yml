@@ -1,11 +1,12 @@
-# App + PostgreSQL + Caddy (automatic HTTPS). Copy .env.example to .env, fill it in, then:  docker compose up -d --build
+# TEST/DEMO deployment behind the Hostinger VPS template's Traefik (host network, entrypoint websecure, certresolver letsencrypt).
+# Secrets come from the project environment (Hostinger Docker Manager), never from this repo.
 services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: salon
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: salon
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -20,33 +21,28 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    env_file: .env
     environment:
       NODE_ENV: production
       PORT: "3000"
       TRUST_PROXY: "1"
       DATABASE_URL: postgres://salon:${POSTGRES_PASSWORD}@db:5432/salon
       DATABASE_SSL: "off"
-      PUBLIC_BASE_URL: https://${DOMAIN:?set DOMAIN in .env}
-    volumes:
-      - ./backups:/app/backups
+      PUBLIC_BASE_URL: https://${SITE_HOST}
+      APP_SECRET: ${APP_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      SITE_DEMO_MODE: "true"
+      SEED_DEMO_DATA: "true"
+      STRIPE_MODE: test
+      NOTIFY_ENABLED: "false"
+      EMAIL_PROVIDER: none
     expose:
       - "3000"
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on:
-      - app
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      DOMAIN: ${DOMAIN}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.salon.rule=Host(`${SITE_HOST}`)
+      - traefik.http.routers.salon.entrypoints=websecure
+      - traefik.http.routers.salon.tls.certresolver=letsencrypt
+      - traefik.http.services.salon.loadbalancer.server.port=3000
 volumes:
   pgdata:
-  caddy_data:
-  caddy_config:
