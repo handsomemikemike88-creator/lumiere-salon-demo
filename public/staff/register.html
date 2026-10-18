@@ -1,0 +1,9 @@
+<!doctype html><html lang="zh-HK"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>員工註冊｜{{STORE_NAME}}</title><link rel="stylesheet" href="assets/staff.css"></head><body>
+<main class="login"><h1>員工註冊 <span class="muted">（需邀請連結）</span></h1>
+<div class="card"><p id="info" class="muted">檢查邀請連結…</p>
+<form id="rf" hidden><label class="f">電郵<input name="email" type="email" readonly></label><label class="f">姓名<input name="name" required maxlength="60"></label>
+<label class="f">密碼（最少 12 個字元，混合至少兩種字元類型）<input name="password" type="password" autocomplete="new-password" minlength="12" required></label>
+<p id="err" class="err" role="alert"></p><button class="btn" type="submit">建立帳戶</button></form>
+<p id="done" class="ok" role="status"></p></div>
+<p class="muted"><a href="login.html">← 返回登入</a></p></main><script src="assets/register.js"></script></body></html>

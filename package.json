@@ -1,0 +1,28 @@
+{
+  "name": "salon-app-v4",
+  "version": "4.0.0",
+  "private": true,
+  "description": "Single-salon booking site + staff CRM (PostgreSQL, sessions, Stripe, optional reminders) - production-ready build",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node scripts/dev-local.js",
+    "migrate": "node scripts/migrate.js",
+    "create-admin": "node scripts/create-admin.js",
+    "seed": "node scripts/seed.js",
+    "purge-retention": "node scripts/purge-retention.js",
+    "test": "node tests/run.js",
+    "check:content": "node scripts/check-content.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "nodemailer": "^10.1.2",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "embedded-postgres": "18.4.0-beta.17"
+  },
+  "license": "UNLICENSED"
+}
