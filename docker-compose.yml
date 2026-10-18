@@ -44,5 +44,13 @@ services:
       - traefik.http.routers.salon.entrypoints=websecure
       - traefik.http.routers.salon.tls.certresolver=letsencrypt
       - traefik.http.services.salon.loadbalancer.server.port=3000
+      - traefik.http.routers.salon-alt.rule=Host(`www.${SITE_HOST}`) || Host(`${OLD_HOST}`)
+      - traefik.http.routers.salon-alt.entrypoints=websecure
+      - traefik.http.routers.salon-alt.tls.certresolver=letsencrypt
+      - traefik.http.routers.salon-alt.middlewares=salon-toapex
+      - traefik.http.routers.salon-alt.service=salon
+      - traefik.http.middlewares.salon-toapex.redirectregex.regex=^https://[^/]+/?(.*)
+      - traefik.http.middlewares.salon-toapex.redirectregex.replacement=https://${SITE_HOST}/$${1}
+      - traefik.http.middlewares.salon-toapex.redirectregex.permanent=false
 volumes:
   pgdata:
