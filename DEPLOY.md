@@ -35,7 +35,7 @@
 Docker 方案由 Caddy 自動處理；平台方案由平台處理。正式環境程式會拒絕非 https 的 `PUBLIC_BASE_URL`，Cookie 為 `Secure`，並送出 HSTS。
 
 ## 備份與還原
-- 每日備份：`crontab -e` 加入 `0 3 * * * cd /path/to/app && docker compose exec -T db pg_dump -U salon salon | gzip > backups/salon-$(date +\%F).sql.gz`（Docker），或用 `scripts/backup.sh`（自行安裝 PostgreSQL 時）。備份檔含個人資料：加密保存、限制存取，並定期把檔案複製到另一個地方（異地備份）。
+- 每日備份：Hostinger Docker Manager 部署（`docker-compose.yml`）已內置 `backup` 服務（每日 03:00 UTC+8，保留 14 天，見 README「每日自動備份」）。自行架設時：`crontab -e` 加入 `0 3 * * * cd /path/to/app && docker compose exec -T db pg_dump -U salon salon | gzip > backups/salon-$(date +\%F).sql.gz`（Docker），或用 `scripts/backup.sh`（自行安裝 PostgreSQL 時）。備份檔含個人資料：加密保存、限制存取，並定期把檔案複製到另一個地方（異地備份）。
 - 還原：`scripts/restore.sh backups/xxx.sql.gz`（會要求輸入 RESTORE 確認，並會覆蓋現有資料）。**請至少試還原一次到測試環境。**
 - 保存期限：每日 cron 執行 `npm run purge-retention`（Docker：`docker compose exec app node scripts/purge-retention.js`）。
 

@@ -4,7 +4,7 @@
 
 由 v3 示範版升級而成（v3 未改動）。Node 22 + PostgreSQL，只有兩個執行期套件（`pg`、`nodemailer`）；Stripe / WhatsApp / SendGrid 用 Node 內建 `fetch`。
 
-**服務與價目（全站只有這四個價錢）：** Hydrafacial 免費體驗 HK$0 · 激光脫毛體驗 HK$688 · 單次 Hydrafacial HK$288 · 10 次套餐 HK$8,800。
+**服務與價目（全站只有這四個價錢）：** Hydrafacial 免費體驗 HK$0 · 單次 Hydrafacial HK$688 · 激光脫毛體驗 HK$288 · 10 次套餐 HK$8,800。
 
 > 這是軟件，不是法律意見。私隱政策、條款、WhatsApp/電郵推廣安排，上線前須由商戶／律師確認（見下方「未能驗證」及 `DEPLOY.md`）。
 
@@ -56,6 +56,41 @@
 - 查閱／更正：客人可下載自己的資料、員工可匯出單一客戶資料；刪除＝匿名化（付款／帳目紀錄保留但不含身份）。
 - 保存期限：`DATA_RETENTION_MONTHS`（預設 24）；`purge-retention` 匿名化過期資料，已購套餐客戶保留（保存年期請與會計師確認）。
 - 操作紀錄（誰在何時做了什麼）供管理員查閱。
+
+## 每日自動備份（Hostinger VPS / docker-compose.yml）
+`docker-compose.yml` 內的 `backup` 服務會自動備份 PostgreSQL：
+- 容器啟動時立即備份一次，之後每日 **03:00（香港／上海時間，UTC+8）** 再備份。
+- 格式：`pg_dump -Fc`（custom format），檔名 `salon-YYYYmmdd-HHMMSS.dump`，存放在 Docker volume **`salon-backups`**（容器內路徑 `/backups`）。
+- 每次備份後會用 `pg_restore -l` 檢查檔案；失敗的備份不會保留。只保留最近 **14 天**。
+- 密碼由專案環境變數 `POSTGRES_PASSWORD` 提供，倉庫內沒有任何金鑰。
+- 備份檔含個人資料：只限管理員存取。這些備份與資料庫在同一部 VPS，**並不是異地備份**，請另外開 Hostinger VPS 快照，或定期把檔案複製到其他地方。
+
+以下指令在 VPS 上執行（SSH 或 hPanel 瀏覽器終端），先 `cd /docker/salon-demo`：
+
+```bash
+# 查看備份紀錄／列出備份
+docker compose logs --tail 50 backup
+docker compose exec backup ls -lh /backups
+
+# 即時多做一次備份（重啟 backup 容器時會先備份一次）
+docker compose restart backup
+
+# 下載一份到 VPS 目前資料夾（之後可用 SFTP 取走）
+docker compose cp backup:/backups/salon-20261019-030000.dump ./
+
+# 還原（會覆蓋現有資料！請先另外備份一次，並先停止 app）
+docker compose stop app
+docker compose exec backup pg_restore --clean --if-exists --no-owner -d salon /backups/salon-20261019-030000.dump
+docker compose start app
+```
+
+先試還原到測試資料庫（不影響正式資料）：
+```bash
+docker compose exec backup createdb restore_test
+docker compose exec backup pg_restore --no-owner -d restore_test /backups/salon-20261019-030000.dump
+docker compose exec backup psql -d restore_test -c '\dt'
+docker compose exec backup dropdb restore_test
+```
 
 ## 測試
 `npm test` 用 `node:test`，對**真實 PostgreSQL**（dev 依賴 `embedded-postgres` 自動啟動；或設定 `TEST_PG_ADMIN_URL` 用自己的）。Stripe 用本機**模擬 Stripe API 伺服器** + 本機簽名 webhook；電郵／WhatsApp 用模擬 provider 及本機模擬 SendGrid / WhatsApp Cloud API。涵蓋：遷移、登入／session／CSRF／限流／鎖定、邀請與權限、預約並發不超額、流程規則、Stripe（冪等、簽名、金額／模式不符、live 金鑰拒絕）、通知（預設關閉、試運行、核准、退訂、推廣阻擋）、匯出／刪除／保存期限、示範／正式頁面、設定驗證、內容檢查。

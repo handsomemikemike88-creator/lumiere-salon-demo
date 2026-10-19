@@ -52,5 +52,53 @@ services:
       - traefik.http.middlewares.salon-toapex.redirectregex.regex=^https://[^/]+/?(.*)
       - traefik.http.middlewares.salon-toapex.redirectregex.replacement=https://${SITE_HOST}/$${1}
       - traefik.http.middlewares.salon-toapex.redirectregex.permanent=false
+  backup:
+    # Daily pg_dump (custom format) into the named volume `salon-backups`.
+    # One dump at container start, then every day at 03:00 Hong Kong / Shanghai time (UTC+8). Keeps 14 days.
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: salon
+      PGDATABASE: salon
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      TZ: HKT-8
+      BACKUP_HOUR: "03"
+      KEEP_DAYS: "14"
+    volumes:
+      - salon-backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -u
+        umask 077
+        mkdir -p /backups
+        dump() {
+          f="/backups/salon-$$(date +%Y%m%d-%H%M%S).dump"
+          if pg_dump -Fc -f "$$f.tmp" && pg_restore -l "$$f.tmp" >/dev/null; then
+            mv "$$f.tmp" "$$f"
+            echo "$$(date '+%F %T %Z') backup OK: $$f ($$(du -h "$$f" | cut -f1))"
+          else
+            rm -f "$$f.tmp"
+            echo "$$(date '+%F %T %Z') backup FAILED" >&2
+          fi
+          find /backups -name 'salon-*.dump' -type f -mtime +$$((KEEP_DAYS - 1)) -print -delete
+          echo "backups kept: $$(ls /backups | grep -c '^salon-.*\.dump$$')"
+        }
+        until pg_isready -q; do sleep 2; done
+        echo "backup service started; daily at $${BACKUP_HOUR}:00 UTC+8, keep $${KEEP_DAYS} days"
+        dump
+        while true; do
+          now=$$(date +%s)
+          next=$$(date -d "$$(date +%Y-%m-%d) $${BACKUP_HOUR}:00:00" +%s)
+          [ "$$next" -le "$$now" ] && next=$$((next + 86400))
+          echo "next backup in $$((next - now))s"
+          sleep $$((next - now))
+          dump
+        done
 volumes:
   pgdata:
+  salon-backups:
